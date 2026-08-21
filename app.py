@@ -6,7 +6,7 @@ from openai import OpenAI
 # 1. Page Configuration
 strl.set_page_config(page_title="MIC Pathway Tracker", page_icon="🎯", layout="wide")
 
-# 2. Hardcoded Certification Dataset (Prerequisite logic built natively)
+# 2. Hardcoded Certification Dataset
 DATASET = {
     "Cloud Infrastructure": [
         {"id": "az-900", "name": "AZ-900: Microsoft Azure Fundamentals", "prereqs": [], "url": "https://microsoft.com"},
@@ -20,7 +20,6 @@ DATASET = {
     ]
 }
 
-# Fallback recommendations if the AI API fails or Key is absent
 FALLBACKS = [
     "This certification cements your core concepts and maps cleanly to enterprise cloud architectures.",
     "Progressing to this node unlocks advanced administrative controls and scale implementation techniques.",
@@ -33,9 +32,15 @@ if "completed" not in strl.session_state:
 if "ai_explanations" not in strl.session_state:
     strl.session_state.ai_explanations = {}
 
+# 4. App UI Layout - Sidebar Configuration First
+selected_domain = strl.sidebar.selectbox("Choose a Track/Domain Goal:", list(DATASET.keys()))
+
+# [FIX] Define the API key input widget ONCE in the sidebar, completely outside any loops
+user_api_key = strl.sidebar.text_input("Enter OpenAI API Key (Optional)", type="password", key="global_openai_key")
+
 # Helper function to mock or call real OpenAI
-def generate_ai_explanation(cert_name, domain):
-    api_key = os.environ.get("OPENAI_API_KEY") or strl.sidebar.text_input("Enter OpenAI API Key (Optional)", type="password")
+def generate_ai_explanation(cert_name, domain, provided_key):
+    api_key = os.environ.get("OPENAI_API_KEY") or provided_key
     
     if not api_key:
         return f"[Fallback Info] {random.choice(FALLBACKS)}"
@@ -50,16 +55,9 @@ def generate_ai_explanation(cert_name, domain):
             ],
             max_tokens=60
         )
-        return response.choices[0].message.content.strip()
+        return response.choices.message.content.strip()
     except Exception:
         return f"[Fallback Info] {random.choice(FALLBACKS)}"
-
-# 4. App UI Layout
-strl.title("🎯 Microsoft Certification Roadmap Tracker")
-strl.caption("MIC Development Recruitment Stage 2 Task — Built entirely via Python Logic Structure")
-
-# Domain Selector Tabs
-selected_domain = strl.sidebar.selectbox("Choose a Track/Domain Goal:", list(DATASET.keys()))
 
 strl.subheader(f"📍 Currently Tracking: {selected_domain}")
 strl.markdown("---")
@@ -70,7 +68,6 @@ for step, cert in enumerate(DATASET[selected_domain], 1):
     c_name = cert["name"]
     c_prereqs = cert["prereqs"]
     
-    # State Determination Logic Matrix
     if c_id in strl.session_state.completed:
         status = "COMPLETED ✅"
         bg_color = "#1e3a1e" 
@@ -84,7 +81,6 @@ for step, cert in enumerate(DATASET[selected_domain], 1):
         bg_color = "#0f172a"
         border_color = "#475569"
 
-    # Dynamic Render Box
     with strl.container():
         strl.markdown(
             f"""
@@ -97,20 +93,20 @@ for step, cert in enumerate(DATASET[selected_domain], 1):
             unsafe_allow_html=True
         )
         
-        # Action Buttons Layout row
-        col1, col2 = strl.columns([1, 4])
+        col1, col2 = strl.columns()
         
         with col1:
             if status == "AVAILABLE 🔓":
-                # When clicked, code computes transition instantly
                 if strl.button(f"Complete Step ✓", key=f"btn_{c_id}"):
                     strl.session_state.completed.add(c_id)
                     
-                    # Proactively request explanation for the subsequent items that unlock
                     for next_cert in DATASET[selected_domain]:
                         if next_cert["id"] not in strl.session_state.completed:
                             with strl.spinner("Generating automated next-step insight..."):
-                                strl.session_state.ai_explanations[next_cert["id"]] = generate_ai_explanation(next_cert["name"], selected_domain)
+                                # Pass the global key into the function directly
+                                strl.session_state.ai_explanations[next_cert["id"]] = generate_ai_explanation(
+                                    next_cert["name"], selected_domain, user_api_key
+                                )
                     strl.rerun()
             elif status == "COMPLETED ✅":
                 strl.write("🎉 Done!")
@@ -120,14 +116,12 @@ for step, cert in enumerate(DATASET[selected_domain], 1):
         with col2:
             strl.markdown(f"[View Official Documentation ↗]({cert['url']})")
             
-        # Display AI Recommendation text directly inline inside the active or next available steps
         if status == "AVAILABLE 🔓":
             explanation = strl.session_state.ai_explanations.get(c_id, "All prerequisites met. Ready to begin your cloud path analysis.")
             strl.info(f"💡 **AI Suggestion**: {explanation}")
             
     strl.markdown("<br>", unsafe_allow_html=True)
 
-# 6. Reset Control Matrix
 if strl.sidebar.button("Clear Progress & Reset"):
     strl.session_state.completed = set()
     strl.session_state.ai_explanations = {}
