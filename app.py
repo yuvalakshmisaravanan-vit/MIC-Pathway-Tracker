@@ -15,7 +15,7 @@ DATASET = {
     ],
     "AI & Data Engineering": [
         {"id": "ai-900", "name": "AI-900: Microsoft Azure AI Fundamentals", "prereqs": [], "url": "https://microsoft.com"},
-        {"id": "dp-100", "name": "DP-100: Designing Data Science Solutions", "prereqs": ["ai-900"], "url": "https://microsoft.com"},
+        {"id": "dp-100", "name": "dp-100: Designing Data Science Solutions", "prereqs": ["ai-900"], "url": "https://microsoft.com"},
         {"id": "ai-102", "name": "AI-102: Designing Azure AI Solutions", "prereqs": ["ai-900"], "url": "https://microsoft.com"}
     ]
 }
@@ -35,7 +35,7 @@ if "ai_explanations" not in strl.session_state:
 # 4. App UI Layout - Sidebar Configuration First
 selected_domain = strl.sidebar.selectbox("Choose a Track/Domain Goal:", list(DATASET.keys()))
 
-# [FIX] Define the API key input widget ONCE in the sidebar, completely outside any loops
+# Define the API key input widget ONCE in the sidebar, completely outside any loops
 user_api_key = strl.sidebar.text_input("Enter OpenAI API Key (Optional)", type="password", key="global_openai_key")
 
 # Helper function to mock or call real OpenAI
@@ -93,7 +93,8 @@ for step, cert in enumerate(DATASET[selected_domain], 1):
             unsafe_allow_html=True
         )
         
-        col1, col2 = strl.columns()
+        # [FIX] Added explicit (2) column count parameter to satisfy strict Streamlit version constraints
+        col1, col2 = strl.columns(2)
         
         with col1:
             if status == "AVAILABLE 🔓":
@@ -103,7 +104,6 @@ for step, cert in enumerate(DATASET[selected_domain], 1):
                     for next_cert in DATASET[selected_domain]:
                         if next_cert["id"] not in strl.session_state.completed:
                             with strl.spinner("Generating automated next-step insight..."):
-                                # Pass the global key into the function directly
                                 strl.session_state.ai_explanations[next_cert["id"]] = generate_ai_explanation(
                                     next_cert["name"], selected_domain, user_api_key
                                 )
