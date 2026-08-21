@@ -15,7 +15,7 @@ DATASET = {
     ],
     "AI & Data Engineering": [
         {"id": "ai-900", "name": "AI-900: Microsoft Azure AI Fundamentals", "prereqs": [], "url": "https://microsoft.com"},
-        {"id": "dp-100", "name": "dp-100: Designing Data Science Solutions", "prereqs": ["ai-900"], "url": "https://microsoft.com"},
+        {"id": "dp-100", "name": "DP-100: Designing Data Science Solutions", "prereqs": ["ai-900"], "url": "https://microsoft.com"},
         {"id": "ai-102", "name": "AI-102: Designing Azure AI Solutions", "prereqs": ["ai-900"], "url": "https://microsoft.com"}
     ]
 }
@@ -34,17 +34,12 @@ if "ai_explanations" not in strl.session_state:
 
 # 4. App UI Layout - Sidebar Configuration First
 selected_domain = strl.sidebar.selectbox("Choose a Track/Domain Goal:", list(DATASET.keys()))
-
-# Define the API key input widget ONCE in the sidebar, completely outside any loops
 user_api_key = strl.sidebar.text_input("Enter OpenAI API Key (Optional)", type="password", key="global_openai_key")
 
-# Helper function to mock or call real OpenAI
 def generate_ai_explanation(cert_name, domain, provided_key):
     api_key = os.environ.get("OPENAI_API_KEY") or provided_key
-    
     if not api_key:
         return f"[Fallback Info] {random.choice(FALLBACKS)}"
-        
     try:
         client = OpenAI(api_key=api_key)
         response = client.chat.completions.create(
@@ -58,49 +53,52 @@ def generate_ai_explanation(cert_name, domain, provided_key):
         return response.choices.message.content.strip()
     except Exception:
         return f"[Fallback Info] {random.choice(FALLBACKS)}"
-
+        
+strl.title("🎯 Microsoft Certification Roadmap Tracker")
 strl.subheader(f"📍 Currently Tracking: {selected_domain}")
 strl.markdown("---")
 
-# 5. Core Roadmap Loop with Logic State Computations
+# 5. Core Roadmap Loop with Custom Theme Configurations
 for step, cert in enumerate(DATASET[selected_domain], 1):
     c_id = cert["id"]
     c_name = cert["name"]
     c_prereqs = cert["prereqs"]
     
+    # [VISUAL UPDATE] Customize colors dynamically across distinct node states
     if c_id in strl.session_state.completed:
         status = "COMPLETED ✅"
-        bg_color = "#1e3a1e" 
-        border_color = "#22c55e"
+        bg_color = "#0B2E1A"        # Deep muted forest green
+        border_color = "#10B981"    # Vivid vibrant emerald green
+        tag_style = "background-color: #064E3B; color: #34D399;"
     elif all(p_id in strl.session_state.completed for p_id in c_prereqs):
         status = "AVAILABLE 🔓"
-        bg_color = "#1e293b"
-        border_color = "#3b82f6"
+        bg_color = "#0A2540"        # Sleek dark midnight navy
+        border_color = "#00D4B2"    # High-impact glowing electric cyan/teal
+        tag_style = "background-color: #004D40; color: #2EE5B5;"
     else:
         status = "LOCKED 🔒"
-        bg_color = "#0f172a"
-        border_color = "#475569"
+        bg_color = "#121824"        # Neutral dark background matte grey
+        border_color = "#2D3748"    # Subdued subtle concrete grey
+        tag_style = "background-color: #1A202C; color: #718096;"
 
     with strl.container():
         strl.markdown(
             f"""
-            <div style="background-color: {bg_color}; border: 2px solid {border_color}; padding: 20px; border-radius: 12px; margin-bottom: 15px;">
-                <span style="font-family: monospace; font-size: 11px; background-color: rgba(255,255,255,0.1); padding: 3px 8px; border-radius: 4px;">Step {step} • {status}</span>
-                <h3 style="margin-top: 8px; margin-bottom: 4px; color: #f8fafc;">{c_name}</h3>
-                <p style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Prerequisites: {', '.join(c_prereqs) if c_prereqs else 'None'}</p>
+            <div style="background-color: {bg_color}; border: 2px solid {border_color}; padding: 22px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);">
+                <span style="font-family: monospace; font-size: 11px; font-weight: bold; padding: 4px 10px; border-radius: 6px; {tag_style}">Step {step} • {status}</span>
+                <h3 style="margin-top: 12px; margin-bottom: 4px; color: #F8FAFC; font-weight: 700; letter-spacing: -0.025em;">{c_name}</h3>
+                <p style="font-size: 12px; color: #94A3B8; margin-bottom: 0px; opacity: 0.85;">Prerequisites: {', '.join(c_prereqs) if c_prereqs else 'None'}</p>
             </div>
             """, 
             unsafe_allow_html=True
         )
         
-        # [FIX] Added explicit (2) column count parameter to satisfy strict Streamlit version constraints
         col1, col2 = strl.columns(2)
         
         with col1:
             if status == "AVAILABLE 🔓":
                 if strl.button(f"Complete Step ✓", key=f"btn_{c_id}"):
                     strl.session_state.completed.add(c_id)
-                    
                     for next_cert in DATASET[selected_domain]:
                         if next_cert["id"] not in strl.session_state.completed:
                             with strl.spinner("Generating automated next-step insight..."):
@@ -109,12 +107,12 @@ for step, cert in enumerate(DATASET[selected_domain], 1):
                                 )
                     strl.rerun()
             elif status == "COMPLETED ✅":
-                strl.write("🎉 Done!")
+                strl.markdown("<span style='color: #34D399; font-weight: 500; font-size: 14px;'>🎉 Step Completed Successfully!</span>", unsafe_allow_html=True)
             else:
                 strl.button("Locked 🔒", disabled=True, key=f"dis_{c_id}")
                 
         with col2:
-            strl.markdown(f"[View Official Documentation ↗]({cert['url']})")
+            strl.markdown(f"<div style='text-align: right; margin-top: 4px;'><a href='{cert['url']}' target='_blank' rel='noreferrer' style='color: #60A5FA; text-decoration: none; font-size: 13px; font-weight: 500;'>View Official Documentation ↗</a></div>", unsafe_allow_html=True)
             
         if status == "AVAILABLE 🔓":
             explanation = strl.session_state.ai_explanations.get(c_id, "All prerequisites met. Ready to begin your cloud path analysis.")
